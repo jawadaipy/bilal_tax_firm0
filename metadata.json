@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Bilal Tax Firm",
+  "description": "Professional internal CRM and tax consultancy management system for Bilal Tax Firm to track clients, filings, fees, documents, and notices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
