@@ -48,6 +48,8 @@ import {
   NoticeStatus
 } from '../types';
 import { isOverdue } from '../services/db';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ClientsViewProps {
   clients: Client[];
@@ -425,6 +427,102 @@ export default function ClientsView({
     }
   };
 
+  const exportClientToPdf = () => {
+    const activeClient = clients.find(c => c.id === selectedClientId);
+    if (!activeClient) return;
+
+    const doc = new jsPDF();
+    const title = `${activeClient.name} - Profile Report`;
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    // Profile Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Client Information', 14, 45);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [['Field', 'Value']],
+      body: [
+        ['Name', activeClient.name],
+        ['CNIC', activeClient.cnic],
+        ['NTN', activeClient.ntn],
+        ['STRN', activeClient.strn || 'N/A'],
+        ['Client Type', activeClient.client_type],
+        ['Phone', activeClient.phone],
+        ['Email', activeClient.email],
+        ['Address', activeClient.address],
+        ['ATL Status', activeClient.atl_status],
+        ['Notes', activeClient.notes || 'None'],
+        ['Registered', new Date(activeClient.created_at).toLocaleDateString()],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 44, 92] }
+    });
+
+    // Filings
+    const clientFilings = filings.filter(f => f.client_id === activeClient.id);
+    if (clientFilings.length > 0) {
+      doc.text('Tax Filings', 14, (doc as any).lastAutoTable.finalY + 15);
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Type', 'Period', 'Deadline', 'Status']],
+        body: clientFilings.map(f => [
+          f.filing_type,
+          f.tax_period,
+          new Date(f.deadline).toLocaleDateString(),
+          f.status
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 44, 92] }
+      });
+    }
+
+    // Fees
+    const clientFees = fees.filter(f => f.client_id === activeClient.id);
+    if (clientFees.length > 0) {
+      doc.text('Fee Invoices', 14, (doc as any).lastAutoTable.finalY + 15);
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Type', 'Amount', 'Paid', 'Balance', 'Due Date']],
+        body: clientFees.map(f => [
+          f.fee_type,
+          f.amount.toLocaleString(),
+          f.amount_paid.toLocaleString(),
+          f.balance_due.toLocaleString(),
+          new Date(f.due_date).toLocaleDateString()
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 44, 92] }
+      });
+    }
+
+    // Notices
+    const clientNotices = notices.filter(n => n.client_id === activeClient.id);
+    if (clientNotices.length > 0) {
+      doc.text('FBR Notices', 14, (doc as any).lastAutoTable.finalY + 15);
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Type', 'Received', 'Deadline', 'Status']],
+        body: clientNotices.map(n => [
+          n.notice_type,
+          new Date(n.date_received).toLocaleDateString(),
+          new Date(n.response_deadline).toLocaleDateString(),
+          n.status
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 44, 92] }
+      });
+    }
+
+    doc.save(`${activeClient.name.replace(/\s+/g, '_')}_Profile.pdf`);
+  };
+
   // Filter clients list
   const filteredClients = clients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -686,6 +784,13 @@ export default function ClientsView({
 
               {/* Action buttons inside detail header */}
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={exportClientToPdf}
+                  className="inline-flex items-center gap-1 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export PDF
+                </button>
                 <button
                   onClick={() => handleOpenEditDrawer(activeClient)}
                   className="inline-flex items-center gap-1 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all cursor-pointer"
